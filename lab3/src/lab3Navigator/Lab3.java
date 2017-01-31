@@ -4,12 +4,14 @@ package lab3Navigator;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 
 import lejos.hardware.Button;
 import lejos.hardware.ev3.LocalEV3;
 import lejos.hardware.lcd.TextLCD;
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
 import lejos.hardware.sensor.EV3UltrasonicSensor;
+import lejos.hardware.sensor.SensorModes;
 import lejos.robotics.SampleProvider;
 
 public class Lab3 {
@@ -21,31 +23,42 @@ public class Lab3 {
 	public static final EV3LargeRegulatedMotor rightMotor = new EV3LargeRegulatedMotor(LocalEV3.get().getPort("D"));
 	public static final EV3UltrasonicSensor us = new EV3UltrasonicSensor(LocalEV3.get().getPort("S1"));
 	
-	public static List<Point> coordinates = new ArrayList<Point>();
+	// Depending on which option on the menu is selected the coordinates
+	public static List<Point> coordinates = new Stack<Point>();
 	
-	private static final int bandCenter = 30;			// Offset from the wall (cm)
-	private static final int bandWidth = 8;				// Width of dead band (cm)
-	private static final int motorLow = 150;			// Speed of slower rotating wheel (deg/sec)
-	private static final int motorHigh = 300;			// Speed of the faster rotating wheel (deg/seec)
-
-	public static final double WHEEL_RADIUS = 2.1;
+	// Globally accessible constants
+	public static final int bandCenter = 30;			// Offset from the wall (cm)
+	public static final int bandWidth = 8;				// Width of dead band (cm)
+	public static final int motorLow = 150;			// Speed of slower rotating wheel (deg/sec)
+	public static final int motorHigh = 300;			// Speed of the faster rotating wheel (deg/seec)
+	public static final double WHEEL_RADIUS = 2.1;		// Radius of the wheels
 	public static final double TRACK = 11.8;			// Wheel center to wheel center distance
+	
+	public static Odometer odometer;
 
 	public static void main(String[] args) {
 		int buttonChoice;
 
 		// some objects that need to be instantiated
 		final TextLCD t = LocalEV3.get().getTextLCD();
-		Odometer odometer = new Odometer(leftMotor, rightMotor);
+		odometer = new Odometer(leftMotor, rightMotor);
 		OdometryDisplay odometryDisplay = new OdometryDisplay(odometer,t);
+	
+		// Instantiate two navigators
+		/*
+		 * The simple navigator cannot avoid obstacles and just simply moves from coordinate to coordinate
+		 * 
+		 * The advanced navigator moves from coordinate to coordinate, however, if an obstacle is present, the
+		 * navigator will attempt to move around it
+		 */
+		final SimpleNavigator simpleNavigator = new SimpleNavigator();
 		
-		// Instantiate a navigator with a set of coordinates
-		final Navigation navigator = new Navigation(leftMotor, rightMotor, us, odometer, coordinates);
 		
-		// Create a bangbang controller
+		// Setup controller objects
+		
 		BangBangController bangbang = new BangBangController(leftMotor, rightMotor, bandCenter,
-				 bandWidth, motorLow, motorHigh);
-
+															 bandWidth, motorLow, motorHigh);
+		
 		// Setup ultrasonic sensor
 		// Note that the EV3 version of leJOS handles sensors a bit differently.
 		// There are 4 steps involved:
@@ -53,11 +66,11 @@ public class Lab3 {
 		// 2. Create a sensor instance and attach to port
 		// 3. Create a sample provider instance for the above and initialize operating mode
 		// 4. Create a buffer for the sensor data
-		
-		SampleProvider usDistance = us.getMode("Distance");	// usDistance provides samples from this instance
+		SampleProvider usDistance = us.getMode("Distance");			// usDistance provides samples from this instance
 		float[] usData = new float[usDistance.sampleSize()];		// usData is the buffer in which data are returned
 		
-		UltrasonicPoller usPoller = new UltrasonicPoller(usDistance, usData, bangbang);
+		// Setup Ultrasonic Poller									// This thread samples the US and invokes
+		UltrasonicPoller usPoller = new UltrasonicPoller(usDistance, usData, bangbang, simpleNavigator);			// the selected controller on each cycle
 		
 		do {
 			// clear the display
@@ -85,8 +98,8 @@ public class Lab3 {
 			// Start threads
 			odometer.start();
 			odometryDisplay.start();
+			simpleNavigator.start();
 			usPoller.start();
-			navigator.start();
 			
 		} else {
 			// Hardcode coordinates here for navigation challenge
@@ -98,7 +111,7 @@ public class Lab3 {
 			// Start threads
 			odometer.start();
 			odometryDisplay.start();
-			navigator.start();
+			simpleNavigator.start();
 		}
 		
 		while (Button.waitForAnyPress() != Button.ID_ESCAPE);

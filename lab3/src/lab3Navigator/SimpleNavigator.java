@@ -8,7 +8,7 @@ public class SimpleNavigator extends Thread {
 	// Define and load important constants
 	private static final int ROTATE_SPEED = 150;
 	private static final int FORWARD_SPEED = 250;
-	private static final long NAVIGATION_PERIOD = 50;
+	protected static final long NAVIGATION_PERIOD = 50;
 	private double leftRadius = Lab3.WHEEL_RADIUS;
 	private double rightRadius = Lab3.WHEEL_RADIUS;
 	private double track = Lab3.TRACK;
@@ -20,17 +20,18 @@ public class SimpleNavigator extends Thread {
 
 	// Used to check if the robot is currently navigating
 	public static boolean navigating = false;
+	public boolean isAvoiding;
 
 	// The list of coordinates provided to navigate to
-	private List<Point> coordinates;
+	protected List<Point> coordinates;
 
 	// Get relevant information from main thread
-	SimpleNavigator(EV3LargeRegulatedMotor leftMotor, EV3LargeRegulatedMotor rightMotor, Odometer odo,
-			List<Point> coordinates) {
-		this.leftMotor = leftMotor;
-		this.rightMotor = rightMotor;
-		this.odo = odo;
-		this.coordinates = coordinates;
+	SimpleNavigator() {
+		this.leftMotor = Lab3.leftMotor;
+		this.rightMotor = Lab3.rightMotor;
+		this.odo = Lab3.odometer;
+		this.coordinates = Lab3.coordinates;
+		this.isAvoiding = false;
 	}
 
 	public void run() {
@@ -41,10 +42,11 @@ public class SimpleNavigator extends Thread {
 		// Alternative to while loop
 		// Only iterate if points are available
 		// This is more flexible
-		for (int i = 0; i < coordinates.size(); ++i) {
+		while (!coordinates.isEmpty()) {
+			if(isAvoiding) continue;
 			updateStart = System.currentTimeMillis();
 			// Load the target coordinate
-			target = coordinates.get(i);
+			target = coordinates.remove(0);
 			// Call travelTo to go there
 			travelTo(target.x, target.y);
 
@@ -118,5 +120,17 @@ public class SimpleNavigator extends Thread {
 
 	private static int convertAngle(double radius, double track, double angle) {
 		return convertDistance(radius, Math.PI * track * angle / 360.0);
+	}
+
+	public void halt() {
+		if(!this.isAvoiding) {
+			leftMotor.stop();
+			rightMotor.stop();
+		}
+		this.isAvoiding = true;
+	}
+	
+	public void go() {
+		this.isAvoiding = false;
 	}
 }

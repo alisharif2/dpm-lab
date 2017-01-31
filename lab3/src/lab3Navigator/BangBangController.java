@@ -8,9 +8,7 @@ public class BangBangController implements UltrasonicController{
 	private int distance, filterControl = 0;
 	private EV3LargeRegulatedMotor leftMotor, rightMotor;
 	
-	private int left_speed = 0, right_speed = 0;
-	
-	static boolean frontIsClear = true;
+	public boolean isClear = true;
 	
 	public BangBangController(EV3LargeRegulatedMotor leftMotor, EV3LargeRegulatedMotor rightMotor, int bandCenter, int bandwidth, int motorLow, int motorHigh) {
 		//Default Constructor
@@ -23,7 +21,7 @@ public class BangBangController implements UltrasonicController{
 	}
 	
 	@Override
-	public void processUSData(int distance) {
+	public void processUSData(int distance, SimpleNavigator simpleNavigator) {
 		this.distance = distance;
 		// TODO: process a movement based on the us distance passed in (BANG-BANG style)
 		// Rudimentary filter copied from PController.java
@@ -41,11 +39,8 @@ public class BangBangController implements UltrasonicController{
 			filterControl = 0;
 			this.distance = distance;
 		}
-		
+
 		int error = Math.abs(this.distance - bandCenter);
-		
-		left_speed = motorHigh;
-		right_speed = motorHigh;
 		
 		// Inside allowed area
 		if(error < bandwidth) {

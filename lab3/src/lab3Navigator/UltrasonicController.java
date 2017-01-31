@@ -9,6 +9,6 @@ public interface UltrasonicController {
 	
 	public EV3LargeRegulatedMotor getRightMotor();
 
-	public void processUSData(int distance);
+	public void processUSData(int distance, SimpleNavigator simpleNavigator);
 
 }

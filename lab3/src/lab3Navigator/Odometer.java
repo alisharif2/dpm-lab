@@ -66,7 +66,7 @@ public class Odometer extends Thread {
 				this.theta += d / Lab3.TRACK;
 				this.x += d_h * Math.cos(this.theta);
 				this.y += d_h * Math.sin(this.theta);
-        // No wrap around to prevent problems with heading calculation in Navigation class
+        // No wrap around to prevent problems with heading calculation in SimpleNavigator class
 			}
 
 			// this ensures that the odometer only runs once every period
