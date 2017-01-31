@@ -4,7 +4,7 @@ import java.util.List;
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
 import lejos.hardware.sensor.EV3UltrasonicSensor;
 
-public class Navigation extends Thread {
+public class SimpleNavigator extends Thread {
 	// Define and load important constants
 	private static final int ROTATE_SPEED = 150;
 	private static final int FORWARD_SPEED = 250;
@@ -17,8 +17,6 @@ public class Navigation extends Thread {
 	private EV3LargeRegulatedMotor leftMotor;
 	private EV3LargeRegulatedMotor rightMotor;
 	private Odometer odo;
-	@SuppressWarnings("unused")
-	private EV3UltrasonicSensor us;
 
 	// Used to check if the robot is currently navigating
 	public static boolean navigating = false;
@@ -27,11 +25,10 @@ public class Navigation extends Thread {
 	private List<Point> coordinates;
 
 	// Get relevant information from main thread
-	Navigation(EV3LargeRegulatedMotor leftMotor, EV3LargeRegulatedMotor rightMotor, EV3UltrasonicSensor us,
-			Odometer odo, List<Point> coordinates) {
+	SimpleNavigator(EV3LargeRegulatedMotor leftMotor, EV3LargeRegulatedMotor rightMotor, Odometer odo,
+			List<Point> coordinates) {
 		this.leftMotor = leftMotor;
 		this.rightMotor = rightMotor;
-		this.us = us;
 		this.odo = odo;
 		this.coordinates = coordinates;
 	}
