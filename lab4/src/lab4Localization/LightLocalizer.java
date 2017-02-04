@@ -11,8 +11,10 @@ public class LightLocalizer {
 	private SampleProvider colorSensor;
 	private float[] colorData;	
 	
-	public static float ROTATION_SPEED = 100;
-	public static double COLOR_SENSOR_OFFSET = 1.4;
+	public static final float ROTATION_SPEED = 100;
+	public static final double COLOR_SENSOR_OFFSET = 14;	// Distance between center of rotation and the color sensor in cm
+	private static final double BLACK_RGB = 0.2;
+	private static final int AXIS_CROSS_DELAY = 200, SENSOR_POLL_PERIOD = 10;
 	
 	public LightLocalizer(Odometer odo, SampleProvider colorSensor, float[] colorData) {
 		this.odo = odo;
@@ -39,11 +41,12 @@ public class LightLocalizer {
 		// Start the robot rotating
 		localizerLocomotor.setSpeeds(-ROTATION_SPEED, ROTATION_SPEED);
 		
+		// This code assumes wer're in the third quadrant
 		while(angles.size() < 4) {
-			if(getFilteredData() < 0.2) {
+			if(getFilteredData() < BLACK_RGB) {
 				Sound.beep();
 				angles.add(odo.getAng());
-				Delay.msDelay(200);
+				Delay.msDelay(AXIS_CROSS_DELAY);
 			}
 		}
 		localizerLocomotor.halt();
@@ -52,11 +55,10 @@ public class LightLocalizer {
 		// Lets calculate our x position
 		double x = (-COLOR_SENSOR_OFFSET) * Math.cos(Math.toRadians(Math.abs(angles.get(0) - angles.get(2)))/2);
 		// Lets calculate our y position
-		double y = (-COLOR_SENSOR_OFFSET) * Math.cos(Math.toRadians(Math.abs(angles.get(1) - angles.get(3)))/2);			
+		double y = (COLOR_SENSOR_OFFSET) * Math.cos(Math.toRadians(Math.abs(angles.get(1) - angles.get(3)))/2);
+		// Let's calculate our heading correction
+		//double headingCorrection = odo.getAng() + 270 - angles.get(0) + (Math.abs(angles.get(0) - angles.get(2)))/2;
 		odo.setPosition(new double [] {x, y, 0.0}, new boolean [] {true, true, false});
-		
-		localizerLocomotor.turnTo(0, true);
-		localizerLocomotor.travelTo(0, 0);
 	}
 	
 	// Takes 50ms to get one sample => 20 Hz polling rate
@@ -64,10 +66,13 @@ public class LightLocalizer {
 		float filteredData = 0;
 		int NUMBER_OF_SAMPLES = 5;
 		
+		// Apply mean filtering
 		for(int i = 0;i < NUMBER_OF_SAMPLES;++i) {
 			colorSensor.fetchSample(colorData, 0);
+			// Sum RGB components to get net RGB color value
+			// Good enough to identify color intensity
 			filteredData += colorData[0] + colorData[1] + colorData[2];
-			Delay.msDelay(10);
+			Delay.msDelay(SENSOR_POLL_PERIOD);
 		}
 		
 		filteredData = filteredData / 5;

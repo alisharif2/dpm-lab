@@ -13,7 +13,7 @@ package lab4Localization;
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
 
 public class Navigation {
-	final static int FAST = 200, SLOW = 100, ACCELERATION = 4000;
+	final static int FAST = 50, SLOW = 25, ACCELERATION = 4000;
 	final static double DEG_ERR = 1.0, CM_ERR = 1.0;
 	private Odometer odometer;
 	private EV3LargeRegulatedMotor leftMotor, rightMotor;
@@ -79,7 +79,7 @@ public class Navigation {
 			minAng = (Math.atan2(y - odometer.getY(), x - odometer.getX())) * (180.0 / Math.PI);
 			if (minAng < 0)
 				minAng += 360.0;
-			this.turnTo(minAng, false);
+			this.turnTo(minAng, true);
 			this.setSpeeds(FAST, FAST);
 		}
 		this.setSpeeds(0, 0);

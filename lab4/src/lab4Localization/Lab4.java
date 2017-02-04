@@ -8,6 +8,7 @@ import lejos.hardware.motor.EV3LargeRegulatedMotor;
 import lejos.hardware.port.Port;
 import lejos.hardware.sensor.*;
 import lejos.robotics.SampleProvider;
+import lejos.utility.Delay;
 
 public class Lab4 {
 
@@ -49,11 +50,25 @@ public class Lab4 {
 		
 		// perform the ultrasonic localization
 		USLocalizer usl = new USLocalizer(odo, usValue, usData, USLocalizer.LocalizationType.FALLING_EDGE);
-		usl.doLocalization();
-		
-		// perform the light sensor localization
 		LightLocalizer lsl = new LightLocalizer(odo, colorValue, colorData);
-		lsl.doLocalization();		
+
+		/*
+		 * The basic process is to figure out our heading and then move towards actual (0, 0)
+		 * Calculate our actual position and run US localization again to get the heading
+		 * The US localizer is exceptionally accurate at heading correction due to its filter
+		 */
+		usl.doLocalization();
+		Button.waitForAnyPress();
+		Navigation nav = new Navigation(odo);
+		nav.travelTo(9, -9); // Arbitrarily chose values to move towards
+		
+		// perform the light sensor localization and reorient
+		lsl.doLocalization();
+		usl.doLocalization(); // Correct heading error introduced by light sensor localization
+		
+		// Finally move towards the actual origin and turn to zero
+		nav.travelTo(0, 0);
+		nav.turnTo(0, true);
 		
 		// Play completion music because we're champions :)
 		//Sound.playSample(new File("/home/root/sounds/music.wav"));
