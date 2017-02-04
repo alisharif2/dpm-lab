@@ -1,132 +1,138 @@
 package lab4Localization;
 
+/*
+ * File: Odometer.java
+ * Written by: Sean Lawlor
+ * ECSE 211 - Design Principles and Methods, Head TA
+ * Fall 2011
+ * Ported to EV3 by: Francois Ouellet Delorme
+ * Fall 2015
+ * 
+ * Class which controls the odometer for the robot
+ * 
+ * Odometer defines cooridinate system as such...
+ * 
+ * 					90Deg:pos y-axis
+ * 							|
+ * 							|
+ * 							|
+ * 							|
+ * 180Deg:neg x-axis------------------0Deg:pos x-axis
+ * 							|
+ * 							|
+ * 							|
+ * 							|
+ * 					270Deg:neg y-axis
+ * 
+ * The odometer is initalized to 90 degrees, assuming the robot is facing up the positive y-axis
+ * 
+ */
+
+import lejos.utility.Timer;
+import lejos.utility.TimerListener;
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
 
-public class Odometer extends Thread {
-	// robot position and heading
-	private double x, y, theta;
-  // The last recorded tachometer counts
-	private int leftMotorTachoCount, rightMotorTachoCount;
+public class Odometer implements TimerListener {
+
+	private Timer timer;
 	private EV3LargeRegulatedMotor leftMotor, rightMotor;
-	// odometer update period, in ms
-	private static final long ODOMETER_PERIOD = 25;
-
-	// lock object for mutual exclusion
-	private Object lock;
-  // phi_l left motor change in angle
-  // phi_r right motor change in angle
-  // d_h robot heading
-  // d_1 distance travelled by left wheel
-  // d_2 distance travelled by right wheel
-  // d_h change in robot heading
-	private double phi_l, phi_r, d_h, d_1, d_2, d;
-
-	// default constructor
-	public Odometer(EV3LargeRegulatedMotor leftMotor,EV3LargeRegulatedMotor rightMotor) {
+	private final int DEFAULT_TIMEOUT_PERIOD = 20;
+	private double leftRadius, rightRadius, width;
+	private double x, y, theta;
+	private double[] oldDH, dDH;
+	
+	// constructor
+	public Odometer (EV3LargeRegulatedMotor leftMotor, EV3LargeRegulatedMotor rightMotor, int INTERVAL, boolean autostart) {
+		
 		this.leftMotor = leftMotor;
 		this.rightMotor = rightMotor;
+		
+		// default values, modify for your robot
+		this.rightRadius = 2.1;
+		this.leftRadius = 2.1;
+		this.width = 15.0;
+		
 		this.x = 0.0;
 		this.y = 0.0;
-		// TODO remove inital heading of robot
-		this.theta = Math.PI/2; // Robot  is initially facing the positive y-axis
-		this.leftMotorTachoCount = 0;
-		this.rightMotorTachoCount = 0;
-		lock = new Object();
+		this.theta = 0.0;
+		this.oldDH = new double[2];
+		this.dDH = new double[2];
+
+		if (autostart) {
+			// if the timeout interval is given as <= 0, default to 20ms timeout 
+			this.timer = new Timer((INTERVAL <= 0) ? INTERVAL : DEFAULT_TIMEOUT_PERIOD, this);
+			this.timer.start();
+		} else
+			this.timer = null;
 	}
+	
+	// functions to start/stop the timerlistener
+	public void stop() {
+		if (this.timer != null)
+			this.timer.stop();
+	}
+	public void start() {
+		if (this.timer != null)
+			this.timer.start();
+	}
+	
+	/*
+	 * Calculates displacement and heading as title suggests
+	 */
+	private void getDisplacementAndHeading(double[] data) {
+		int leftTacho, rightTacho;
+		leftTacho = leftMotor.getTachoCount();
+		rightTacho = rightMotor.getTachoCount();
 
-	// run method (required for Thread)
-	public void run() {
-		long updateStart, updateEnd;
+		data[0] = (leftTacho * leftRadius + rightTacho * rightRadius) * Math.PI / 360.0;
+		data[1] = (rightTacho * rightRadius - leftTacho * leftRadius) / width;
+	}
+	
+	/*
+	 * Recompute the odometer values using the displacement and heading changes
+	 */
+	public void timedOut() {
+		this.getDisplacementAndHeading(dDH);
+		dDH[0] -= oldDH[0];
+		dDH[1] -= oldDH[1];
 
-		while (true) {
-			updateStart = System.currentTimeMillis();
-			
-      // Get the change in the rotation of the left and right wheels
-			phi_l = leftMotor.getTachoCount() - leftMotorTachoCount;
-			phi_r = rightMotor.getTachoCount() - rightMotorTachoCount;
+		// update the position in a critical region
+		synchronized (this) {
+			theta += dDH[1];
+			theta = fixDegAngle(theta);
 
-      // Update the tachometer counts
-			leftMotorTachoCount = leftMotor.getTachoCount();
-			rightMotorTachoCount = rightMotor.getTachoCount();
-			
-      // Calculate the distance travelled by each wheel
-			d_1 = (Lab4.WHEEL_RADIUS * Math.PI * phi_l) / 180;
-			d_2 = (Lab4.WHEEL_RADIUS * Math.PI * phi_r) / 180;
-			
-			
-      // All these calculations are taken from the tutorial slides
-			d = d_2 - d_1;
-			d_h = (d_1 + d_2) / 2;
-			
-			synchronized (lock) {
-        // Updating the robot's position
-				this.theta += d / Lab4.TRACK;
-				this.x += d_h * Math.cos(this.theta);
-				this.y += d_h * Math.sin(this.theta);
-        // No wrap around to prevent problems with heading calculation in SimpleNavigator class
-			}
-
-			// this ensures that the odometer only runs once every period
-			updateEnd = System.currentTimeMillis();
-			if (updateEnd - updateStart < ODOMETER_PERIOD) {
-				try {
-					Thread.sleep(ODOMETER_PERIOD - (updateEnd - updateStart));
-				} catch (InterruptedException e) {
-					// there is nothing to be done here because it is not
-					// expected that the odometer will be interrupted by
-					// another thread
-				}
-			}
+			x += dDH[0] * Math.cos(Math.toRadians(theta));
+			y += dDH[0] * Math.sin(Math.toRadians(theta));
 		}
+
+		oldDH[0] += dDH[0];
+		oldDH[1] += dDH[1];
 	}
 
-	// accessors
-	public void getPosition(double[] position, boolean[] update) {
-		// ensure that the values don't change while the odometer is running
-		synchronized (lock) {
-			if (update[0])
-				position[0] = x;
-			if (update[1])
-				position[1] = y;
-			if (update[2])
-				position[2] = theta;
-		}
-	}
-
+	// return X value
 	public double getX() {
-		double result;
-
-		synchronized (lock) {
-			result = x;
+		synchronized (this) {
+			return x;
 		}
-
-		return result;
 	}
 
+	// return Y value
 	public double getY() {
-		double result;
-
-		synchronized (lock) {
-			result = y;
+		synchronized (this) {
+			return y;
 		}
-
-		return result;
 	}
 
-	public double getTheta() {
-		double result;
-
-		synchronized (lock) {
-			result = theta;
+	// return theta value
+	public double getAng() {
+		synchronized (this) {
+			return theta;
 		}
-
-		return result;
 	}
 
-	// mutators
+	// set x,y,theta
 	public void setPosition(double[] position, boolean[] update) {
-		// ensure that the values don't change while the odometer is running
-		synchronized (lock) {
+		synchronized (this) {
 			if (update[0])
 				x = position[0];
 			if (update[1])
@@ -136,53 +142,46 @@ public class Odometer extends Thread {
 		}
 	}
 
-	public void setX(double x) {
-		synchronized (lock) {
-			this.x = x;
+	// return x,y,theta
+	public void getPosition(double[] position) {
+		synchronized (this) {
+			position[0] = x;
+			position[1] = y;
+			position[2] = theta;
 		}
 	}
 
-	public void setY(double y) {
-		synchronized (lock) {
-			this.y = y;
+	public double[] getPosition() {
+		synchronized (this) {
+			return new double[] { x, y, theta };
 		}
 	}
-
-	public void setTheta(double theta) {
-		synchronized (lock) {
-			this.theta = theta;
-		}
+	
+	// accessors to motors
+	public EV3LargeRegulatedMotor [] getMotors() {
+		return new EV3LargeRegulatedMotor[] {this.leftMotor, this.rightMotor};
+	}
+	public EV3LargeRegulatedMotor getLeftMotor() {
+		return this.leftMotor;
+	}
+	public EV3LargeRegulatedMotor getRightMotor() {
+		return this.rightMotor;
 	}
 
-	/**
-	 * @return the leftMotorTachoCount
-	 */
-	public int getLeftMotorTachoCount() {
-		return leftMotorTachoCount;
+	// static 'helper' methods
+	public static double fixDegAngle(double angle) {
+		if (angle < 0.0)
+			angle = 360.0 + (angle % 360.0);
+
+		return angle % 360.0;
 	}
 
-	/**
-	 * @param leftMotorTachoCount the leftMotorTachoCount to set
-	 */
-	public void setLeftMotorTachoCount(int leftMotorTachoCount) {
-		synchronized (lock) {
-			this.leftMotorTachoCount = leftMotorTachoCount;	
-		}
-	}
+	public static double minimumAngleFromTo(double a, double b) {
+		double d = fixDegAngle(b - a);
 
-	/**
-	 * @return the rightMotorTachoCount
-	 */
-	public int getRightMotorTachoCount() {
-		return rightMotorTachoCount;
-	}
-
-	/**
-	 * @param rightMotorTachoCount the rightMotorTachoCount to set
-	 */
-	public void setRightMotorTachoCount(int rightMotorTachoCount) {
-		synchronized (lock) {
-			this.rightMotorTachoCount = rightMotorTachoCount;	
-		}
+		if (d < 180.0)
+			return d;
+		else
+			return d - 360.0;
 	}
 }
