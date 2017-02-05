@@ -47,9 +47,10 @@ public class Lab4 {
 		// setup the odometer and display
 		Odometer odo = new Odometer(leftMotor, rightMotor, 30, true);
 		LCDInfo lcd = new LCDInfo(odo);
-		
+		Navigation nav = new Navigation(odo);
+
 		// perform the ultrasonic localization
-		USLocalizer usl = new USLocalizer(odo, usValue, usData, USLocalizer.LocalizationType.FALLING_EDGE);
+		USLocalizer usl = new USLocalizer(odo, usValue, usData, USLocalizer.LocalizationType.RISING_EDGE);
 		LightLocalizer lsl = new LightLocalizer(odo, colorValue, colorData);
 
 		/*
@@ -59,7 +60,7 @@ public class Lab4 {
 		 */
 		usl.doLocalization();
 		Button.waitForAnyPress();
-		Navigation nav = new Navigation(odo);
+		System.exit(0);
 		nav.travelTo(9, -9); // Arbitrarily chose values to move towards
 		
 		// perform the light sensor localization and reorient

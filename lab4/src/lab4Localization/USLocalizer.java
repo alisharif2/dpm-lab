@@ -70,9 +70,9 @@ public class USLocalizer {
 			} else {
 				headingCorrection = 45 - (alpha + beta)/2;
 			}
-				
+						
 			// update the odometer position with our new heading(zero degrees)
-			odo.setPosition(new double [] {0.0, 0.0, headingCorrection + beta - 90}, new boolean [] {false, false, true});
+			odo.setPosition(new double [] {0, 0, headingCorrection + beta - 90}, new boolean [] {false, false, true});
 			localizerLocomotor.turnTo(0, true);
 		} else {
 			/*
@@ -119,7 +119,7 @@ public class USLocalizer {
 			}
 			
 			// update the odometer position with our new heading(zero degrees)
-			int SYSTEMATIC_ERR = 10;
+			int SYSTEMATIC_ERR = 11;
 			odo.setPosition(new double [] {0.0, 0.0, headingCorrection + beta - 90 - SYSTEMATIC_ERR}, new boolean [] {false, false, true});
 			localizerLocomotor.turnTo(0, true);
 		}
