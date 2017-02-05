@@ -60,7 +60,6 @@ public class Lab4 {
 		 */
 		usl.doLocalization();
 		Button.waitForAnyPress();
-		System.exit(0);
 		nav.travelTo(9, -9); // Arbitrarily chose values to move towards
 		
 		// perform the light sensor localization and reorient
